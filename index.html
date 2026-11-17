@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spider-Man: New York Libero</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000; font-family:'Trebuchet MS',Verdana,sans-serif; }
+  canvas#game { display:block; }
+
+  #crosshair { position:fixed; left:50%; top:50%; width:14px; height:14px; margin:-7px 0 0 -7px;
+    border:2px solid rgba(255,255,255,.85); border-radius:50%; pointer-events:none; z-index:5;
+    box-shadow:0 0 6px rgba(255,0,0,.8); }
+
+  #stats { position:fixed; left:18px; top:16px; z-index:6; width:230px; }
+  .bar { height:14px; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.35); border-radius:7px; margin-bottom:6px; overflow:hidden; }
+  .bar > div { height:100%; border-radius:6px; transition:width .15s; }
+  #hpFill { background:linear-gradient(90deg,#e53935,#ff8a80); width:100%; }
+  #stFill { background:linear-gradient(90deg,#1e88e5,#82b1ff); width:100%; }
+  #money { color:#ffd54f; font-weight:bold; font-size:18px; text-shadow:0 1px 3px #000; }
+  #clock { color:#eee; font-size:13px; text-shadow:0 1px 3px #000; margin-top:2px; }
+
+  #mission { position:fixed; right:18px; top:16px; z-index:6; max-width:300px; text-align:right; }
+  #missionTitle { color:#ff5252; font-weight:bold; font-size:17px; text-shadow:0 1px 3px #000; }
+  #missionText { color:#fff; font-size:14px; text-shadow:0 1px 3px #000; margin-top:3px; }
+  #missionTimer { color:#ffd54f; font-size:20px; font-weight:bold; text-shadow:0 1px 3px #000; }
+
+  #prompt { position:fixed; left:50%; bottom:120px; transform:translateX(-50%); z-index:6;
+    background:rgba(0,0,0,.65); color:#fff; padding:8px 16px; border-radius:20px; font-size:15px;
+    border:1px solid rgba(255,255,255,.3); display:none; }
+  #prompt b { color:#ff5252; }
+
+  #toast { position:fixed; left:50%; top:70px; transform:translateX(-50%); z-index:8;
+    background:rgba(183,28,28,.92); color:#fff; padding:10px 22px; border-radius:10px; font-size:16px;
+    font-weight:bold; display:none; box-shadow:0 4px 14px rgba(0,0,0,.5); }
+
+  #arrow { position:fixed; left:50%; top:50%; z-index:5; width:0; height:0; pointer-events:none; }
+  #arrowInner { position:absolute; left:-11px; top:-120px; width:0; height:0;
+    border-left:11px solid transparent; border-right:11px solid transparent; border-bottom:22px solid rgba(255,213,79,.9);
+    filter:drop-shadow(0 0 4px rgba(0,0,0,.7)); }
+
+  #minimap { position:fixed; left:18px; bottom:18px; z-index:6; border-radius:10px;
+    border:2px solid rgba(255,255,255,.4); box-shadow:0 4px 14px rgba(0,0,0,.5); }
+
+  #controls { position:fixed; right:18px; bottom:18px; z-index:6; color:rgba(255,255,255,.75);
+    font-size:12px; text-align:right; text-shadow:0 1px 2px #000; line-height:1.55; }
+
+  .overlay { position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    background:rgba(5,5,15,.82); backdrop-filter:blur(4px); }
+  .panel { background:linear-gradient(160deg,#1a1a2e,#0d0d1a); border:2px solid #b71c1c; border-radius:16px;
+    padding:34px 44px; color:#fff; max-width:640px; max-height:85vh; overflow-y:auto; box-shadow:0 10px 50px rgba(0,0,0,.8); }
+  .panel h1 { color:#ff1744; font-size:34px; margin-bottom:6px; text-shadow:0 2px 8px rgba(255,23,68,.4); }
+  .panel h2 { color:#ff5252; font-size:22px; margin-bottom:14px; }
+  .panel p, .panel li { color:#cfd8dc; font-size:15px; line-height:1.6; }
+  .panel kbd { background:#b71c1c; padding:1px 8px; border-radius:5px; font-weight:bold; font-size:13px; }
+  .bigbtn { display:inline-block; margin-top:20px; background:#b71c1c; color:#fff; border:none; padding:13px 34px;
+    font-size:19px; font-weight:bold; border-radius:10px; cursor:pointer; }
+  .bigbtn:hover { background:#e53935; }
+  .menuitem { display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,.06);
+    border-radius:10px; padding:11px 16px; margin-bottom:9px; }
+  .menuitem .name { font-weight:bold; font-size:16px; }
+  .menuitem .desc { color:#90a4ae; font-size:13px; }
+  .menuitem button { background:#b71c1c; color:#fff; border:none; padding:7px 16px; border-radius:7px;
+    cursor:pointer; font-weight:bold; margin-left:8px; }
+  .menuitem button:hover { background:#e53935; }
+  .menuitem button:disabled { background:#455a64; cursor:default; }
+  .menuitem.owned button { background:#2e7d32; }
+  .costumeSwatch { display:inline-block; width:16px; height:16px; border-radius:4px; margin-right:8px; vertical-align:-2px; }
+</style>
+</head>
+<body>
+<canvas id="minimap" width="190" height="190"></canvas>
+<div id="crosshair"></div>
+<div id="stats">
+  <div class="bar"><div id="hpFill"></div></div>
+  <div class="bar"><div id="stFill"></div></div>
+  <div id="money">€ 50</div>
+  <div id="clock">Giorno</div>
+</div>
+<div id="mission">
+  <div id="missionTitle"></div>
+  <div id="missionText"></div>
+  <div id="missionTimer"></div>
+</div>
+<div id="prompt"></div>
+<div id="toast"></div>
+<div id="arrow"><div id="arrowInner"></div></div>
+<div id="controls">
+  <b>WASD</b> muoviti · <b>SHIFT</b> corri · <b>SPAZIO</b> salto (x2)<br>
+  <b>Click SX</b> (tieni) ragnatela · <b>Click DX / E</b> traino rapido<br>
+  <b>F</b> interagisci · <b>T</b> costumi · <b>ESC</b> pausa
+</div>
+
+<div class="overlay" id="startOverlay" style="display:flex">
+  <div class="panel" style="text-align:center">
+    <h1>SPIDER-MAN</h1>
+    <h2>New York Libero</h2>
+    <p style="text-align:left">
+      Oscilla con le ragnatele tra i grattacieli, completa le missioni ai punti <span style="color:#ff5252">rosso ragno</span>,
+      mangia nei fast food e sblocca nuovi costumi.<br><br>
+      <kbd>WASD</kbd> movimento · <kbd>SHIFT</kbd> corsa · <kbd>SPAZIO</kbd> doppio salto<br>
+      <kbd>Click SX</kbd> tieni premuto per lanciare e usare la ragnatela<br>
+      <kbd>Click DX</kbd>/<kbd>E</kbd> traino rapido · <kbd>F</kbd> interagisci · <kbd>T</kbd> armadio costumi
+    </p>
+    <button class="bigbtn" id="startBtn">CLICCA PER GIOCARE</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseOverlay">
+  <div class="panel" style="text-align:center">
+    <h1>PAUSA</h1>
+    <p id="pauseStats"></p>
+    <button class="bigbtn" id="resumeBtn">RIPRENDI</button>
+  </div>
+</div>
+
+<div class="overlay" id="foodOverlay">
+  <div class="panel">
+    <h2 id="foodTitle">Fast Food</h2>
+    <div id="foodList"></div>
+    <p style="margin-top:10px">Soldi disponibili: <span id="foodMoney" style="color:#ffd54f;font-weight:bold"></span></p>
+    <button class="bigbtn" id="foodClose">ESCI</button>
+  </div>
+</div>
+
+<div class="overlay" id="costumeOverlay">
+  <div class="panel">
+    <h2>Armadio dei Costumi</h2>
+    <div id="costumeList"></div>
+    <p style="margin-top:10px">Soldi disponibili: <span id="costumeMoney" style="color:#ffd54f;font-weight:bold"></span></p>
+    <button class="bigbtn" id="costumeClose">ESCI</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module" src="./game.js"></script>
+</body>
+</html>
